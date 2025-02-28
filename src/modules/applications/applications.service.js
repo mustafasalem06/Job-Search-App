@@ -7,7 +7,7 @@ import path from "path";
 export const exportApplicationsToExcel = async (req, res, next) => {
   const { companyId, date } = req.params;
 
-  const excelFolderPath = path.join(process.cwd(), "ExcelFiles");
+  const excelFolderPath = path.join(process.cwd(), "src", "ExcelFiles");
   if (!fs.existsSync(excelFolderPath)) {
     fs.mkdirSync(excelFolderPath, { recursive: true });
   }
