@@ -2,9 +2,16 @@ import Application from "../../DB/models/application.model.js";
 import JobOpportunity from "../../DB/models/JobOpportunity.model.js";
 import ExcelJS from "exceljs";
 import fs from "fs";
+import path from "path";
 
 export const exportApplicationsToExcel = async (req, res, next) => {
   const { companyId, date } = req.params;
+
+  const excelFolderPath = path.join(process.cwd(), "ExcelFiles");
+  if (!fs.existsSync(excelFolderPath)) {
+    fs.mkdirSync(excelFolderPath, { recursive: true });
+  }
+
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
 
@@ -45,7 +52,7 @@ export const exportApplicationsToExcel = async (req, res, next) => {
     });
   });
 
-  const filePath = `applications_${companyId}_${date}.xlsx`;
+  const filePath = path.join(excelFolderPath, `applications_${companyId}_${date}.xlsx`);
   await workbook.xlsx.writeFile(filePath);
 
   res.download(filePath, (err) => {
