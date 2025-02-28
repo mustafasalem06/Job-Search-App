@@ -22,19 +22,15 @@ const bootstrap = async (app, express) => {
   // Use Helmet to secure HTTP headers
   app.use(helmet());
 
-  // Enable CORS with specific origin (adjust as needed)
-  app.use(
-    cors({
-      origin: process.env.FRONTEND_URL || "http://localhost:3000", // Allow requests from this origin
-      credentials: true, // Allow cookies and credentials
-    })
-  );
+  // Enable CORS for all routes
+  app.use(cors());
 
   // Apply rate limiting to all requests
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // Limit each IP to 100 requests per windowMs
-    message: "Too many requests from this IP, please try again after 15 minutes",
+    message:
+      "Too many requests from this IP, please try again after 15 minutes",
   });
   app.use(limiter);
 
