@@ -103,7 +103,6 @@ router.patch(
   "/applications/:applicationId",
   isAuthenticated,
   isAuthorized(jobEndpoint.acceptOrRejectApplicant),
-  uploadCloud().single("file"),
   validation(jobSchema.acceptOrRejectApplicant),
   asyncHandler(jobService.acceptOrRejectApplicant)
 );

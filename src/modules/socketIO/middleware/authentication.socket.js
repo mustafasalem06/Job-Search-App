@@ -2,7 +2,7 @@ import User from "../../../DB/models/user.model.js";
 import { verifyToken } from "../../../utils/token/token.js";
 
 const socketAuth = async (socket, next) => {
-    const { authorization } = socket.handshake.auth;
+    const { authorization } = socket.handshake.headers;
     if (!authorization)
         return next(new Error("Token is required!"));
     if (!authorization.startsWith("Bearer"))

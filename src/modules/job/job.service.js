@@ -6,10 +6,8 @@ import {
   roles,
 } from "./../../utils/constants/appConstants.js";
 import cloudinary from "../../utils/file uploading/cloudinary.config.js";
-import User from "../../DB/models/user.model.js";
 import { eventEmitter } from "../../utils/emails/email.event.js";
-import sendEmails from "../../utils/emails/sendEmails.js";
-import { emitSocketEvent } from "../socketIO/index.js";
+import { emitSocketEvent } from "../socketIO/chatting/service.js";
 
 // Add Job
 export const addJob = async (req, res, next) => {
@@ -182,10 +180,21 @@ export const getJobApplications = async (req, res, next) => {
   const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
   const userId = req.user._id;
 
-  const job = await JobOpportunity.findById(jobId);
-  if (!job) return next(new Error("Job not found.", { cause: 404 }));
+  const job = await JobOpportunity.findById(jobId)
+    .populate({
+      path: "applications",
+      populate: {
+        path: "userId",
+        select: "-password -__v -_id",
+      },
+    })
+    .paginate({ page, limit, sort });
 
-  const company = await Company.findById(job.companyId);
+  if (!job) return next(new Error("Job not found.", { cause: 404 }));
+  console.log(job.results.companyId);
+  console.log(job);
+
+  const company = await Company.findById(job.results.companyId);
   if (!company) return next(new Error("Company not found.", { cause: 404 }));
 
   if (
@@ -199,35 +208,16 @@ export const getJobApplications = async (req, res, next) => {
     );
   }
 
-  const {
-    results: applications,
-    totalCount,
-    page: currentPage,
-    limit: currentLimit,
-    totalPages,
-  } = await JobOpportunity.findById(jobId)
-    .populate({
-      path: "applications",
-      populate: {
-        path: "user",
-        select: "-password -__v -_id",
-      },
-      options: {
-        skip: (page - 1) * limit,
-        limit: limit,
-        sort: sort,
-      },
-    })
-    .paginate({ page, limit, sort });
-
   return res.status(200).json({
     success: true,
-    results: {
-      applications,
-      totalCount,
-      page: currentPage,
-      limit: currentLimit,
-      totalPages,
+    data: {
+      applications: job.results.applications,
+      pagination: {
+        page: job.page,
+        limit: job.limit,
+        totalCount: job.totalCount,
+        totalPages: job.totalPages,
+      },
     },
   });
 };
@@ -241,12 +231,16 @@ export const applyToJob = async (req, res, next) => {
     return next(new Error("Only users can apply to jobs.", { cause: 403 }));
   }
 
-  const job = await JobOpportunity.findById(jobId);
+  // Populate the companyId field with the companyName
+  const job = await JobOpportunity.findById(jobId).populate(
+    "companyId",
+    "companyName"
+  );
   if (!job) return next(new Error("Job not found.", { cause: 404 }));
 
   const existingApplication = await Application.findOne({
-    job: jobId,
-    user: userId,
+    jobId,
+    userId,
   });
   if (existingApplication) {
     return next(
@@ -259,7 +253,7 @@ export const applyToJob = async (req, res, next) => {
     const { secure_url, public_id } = await cloudinary.uploader.upload(
       req.file.path,
       {
-        folder: `${process.env.CLOUD_FOLDER_NAME}/applications/${job.companyId}/${jobId}/${userId}/job-applications`,
+        folder: `${process.env.CLOUD_FOLDER_NAME}/companies/${job.companyId.companyName}/jobs/${jobId}/job-applications/${userId}`,
         resource_type: "auto",
       }
     );
@@ -286,17 +280,35 @@ export const applyToJob = async (req, res, next) => {
 // Accept or Reject an applicant for a specific job
 export const acceptOrRejectApplicant = async (req, res, next) => {
   const { applicationId } = req.params;
-  const userId = req.user._id;
   const { status } = req.body;
+  const userId = req.user._id;
 
-  const user = await User.findById(userId);
-  if (!user) return next(new AppError("User not found.", 404));
+  const application = await Application.findById(applicationId)
+    .populate({
+      path: "jobId",
+      select: "companyId",
+      populate: {
+        path: "companyId",
+        select: "HRs",
+      },
+    })
+    .populate({
+      path: "userId",
+      select: "email",
+    });
 
-  const application = await Application.findById(applicationId).populate(
-    "user",
-    "email"
-  );
-  if (!application) return next(new AppError("Application not found.", 404));
+  if (!application) {
+    return next(new Error("Application not found.", { cause: 404 }));
+  }
+
+  const company = application.jobId.companyId;
+  if (!company.HRs.includes(userId)) {
+    return next(
+      new Error("Only the company HR can accept or reject the application.", {
+        cause: 403,
+      })
+    );
+  }
 
   application.status = status;
   await application.save();
@@ -305,17 +317,10 @@ export const acceptOrRejectApplicant = async (req, res, next) => {
     status === applicationStatus.ACCEPTED
       ? "Application Accepted"
       : "Application Rejected";
-  const emailText = `Your application has been ${status}.`;
-
-  await sendEmails({
-    email: application.user.email,
-    subject: emailSubject,
-    text: emailText,
-  });
 
   eventEmitter.emit(
     "NEW_APPLICATION_STATUS",
-    application.user.email,
+    application.userId.email,
     application.status,
     emailSubject
   );

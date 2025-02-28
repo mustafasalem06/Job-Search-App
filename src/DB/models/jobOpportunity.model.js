@@ -88,7 +88,7 @@ jobOpportunitySchema.query.paginate = async function ({
 jobOpportunitySchema.virtual("applications", {
   ref: "Application",
   localField: "_id",
-  foreignField: "job",
+  foreignField: "jobId",
 });
 
 const JobOpportunity = model("JobOpportunity", jobOpportunitySchema);
