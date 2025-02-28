@@ -11,10 +11,34 @@ import applicationsRouter from "./modules/applications/applications.controller.j
 import { createHandler } from "graphql-http/lib/use/express";
 import schema from "./GraphQL/modules.schema.js";
 import morgan from "morgan";
+import helmet from "helmet"; // Import Helmet
+import cors from "cors"; // Import CORS
+import rateLimit from "express-rate-limit"; // Import Rate Limiter
 
 const bootstrap = async (app, express) => {
   // Connect to database
   await connectDB();
+
+  // Use Helmet to secure HTTP headers
+  app.use(helmet());
+
+  // Enable CORS with specific origin (adjust as needed)
+  app.use(
+    cors({
+      origin: process.env.FRONTEND_URL || "http://localhost:3000", // Allow requests from this origin
+      credentials: true, // Allow cookies and credentials
+    })
+  );
+
+  // Apply rate limiting to all requests
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: "Too many requests from this IP, please try again after 15 minutes",
+  });
+  app.use(limiter);
+
+  // Parse JSON bodies
   app.use(express.json());
 
   // Use Morgan middleware for logging HTTP requests in the "dev" format

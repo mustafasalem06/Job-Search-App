@@ -23,9 +23,6 @@ const sendEmails = async ({ to, subject, html }) => {
   return info.rejected.length > 0 ? true : false;
 };
 
-export const subjects = {
-  register: "Acctivate Account",
-  resetPassword: "Reset Password",
-};
+
 
 export default sendEmails;

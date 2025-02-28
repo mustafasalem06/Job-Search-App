@@ -69,5 +69,16 @@ companySchema.virtual("jobs", {
   foreignField: "companyId",
 });
 
+
+companySchema.post(
+  "",
+  { query: false, document: true },
+  async function (doc, next) {
+    
+
+    return next();
+  }
+);
+
 const Company = model("Company", companySchema);
 export default Company;

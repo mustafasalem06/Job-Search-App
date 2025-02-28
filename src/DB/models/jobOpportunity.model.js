@@ -91,5 +91,7 @@ jobOpportunitySchema.virtual("applications", {
   foreignField: "jobId",
 });
 
+
+
 const JobOpportunity = model("JobOpportunity", jobOpportunitySchema);
 export default JobOpportunity;

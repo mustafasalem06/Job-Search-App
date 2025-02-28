@@ -4,6 +4,7 @@ import randomstring from "randomstring";
 import { eventEmitter } from "../../utils/emails/email.event.js";
 import { compareHash, hash } from "../../utils/hashing/hash.js";
 import { generateToken, verifyToken } from "../../utils/token/token.js";
+import { subjects } from "../../utils/constants/appConstants.js";
 
 // Register a new user
 export const signup = async (req, res, next) => {
@@ -13,7 +14,7 @@ export const signup = async (req, res, next) => {
     return next(new Error("User already exists!"), { cause: 409 });
 
   const OTP = randomstring.generate({ length: 6, charset: "alphanumeric" });
-  eventEmitter.emit("SIGNUP", email, OTP);
+  eventEmitter.emit("SIGNUP", email, OTP, subjects.signUp);
 
   const hashedOTP = hash({ plainText: OTP });
 
@@ -92,40 +93,48 @@ export const signin = async (req, res, next) => {
   });
 };
 
-// Sign up or login with Google
 export const signupOrLoginWithGoogle = async (req, res, next) => {
   const { idToken } = req.body;
 
-  const client = new OAuth2Client();
-  async function verify() {
-    const ticket = await client.verifyIdToken({
-      idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-    const payload = ticket.getPayload();
-    return payload;
+  if (!idToken) {
+    return next(new Error("ID token is required!", { cause: 400 }));
   }
 
-  const userData = await verify();
-  const { email_verified, email, name, picture } = userData;
+  const client = new OAuth2Client();
 
-  if (!email_verified) return next(new Error("Invalid email!", { cause: 400 }));
+  const ticket = await client.verifyIdToken({
+    idToken,
+    audience: process.env.GOOGLE_CLIENT_ID,
+  });
+  const payload = ticket.getPayload();
+  const { email_verified, email, name, picture } = payload;
+
+  if (!email_verified) {
+    return next(new Error("Invalid email!", { cause: 400 }));
+  }
 
   const [firstName, ...lastNameParts] = name.split(" ");
   const lastName = lastNameParts.join(" ");
 
-  const user = await User.create({
-    firstName,
-    lastName,
-    email,
-    profilePic: {
-      secure_url: picture,
-      public_id: null,
-    },
-    isActivated: true,
-    isLoggedIn: true,
-    provider: providers.google,
-  });
+  let user = await User.findOne({ email });
+
+  if (!user) {
+    user = await User.create({
+      firstName,
+      lastName,
+      email,
+      profilePic: {
+        secure_url: picture,
+        public_id: null,
+      },
+      isActivated: true,
+      isLoggedIn: true,
+      provider: providers.google,
+    });
+  } else {
+    user.isLoggedIn = true;
+    await user.save();
+  }
 
   return res.status(200).json({
     success: true,
@@ -148,7 +157,7 @@ export const forgetPassword = async (req, res, next) => {
   if (!user) return next(new Error("Invalid email!"), { cause: 404 });
 
   const OTP = randomstring.generate({ length: 6, charset: "numeric" });
-  eventEmitter.emit("FORGOT_PASSWORD", email, OTP);
+  eventEmitter.emit("FORGOT_PASSWORD", email, OTP, subjects.forgetPassword);
   const hashedOTP = hash({ plainText: OTP });
 
   user.OTP.push({

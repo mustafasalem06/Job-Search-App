@@ -45,3 +45,9 @@ export const applicationStatus = {
   IN_CONSIDERATION: "In consideration",
   REJECTED: "Rejected",
 };
+
+export const subjects = {
+  signUp: "Acctivate Account",
+  forgetPassword: "Forget Password",
+  jobApplication: "New Job Application",
+};
