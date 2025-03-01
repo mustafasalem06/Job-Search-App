@@ -4,6 +4,7 @@ import {
   defaultSecureURL_logoCompany,
 } from "../../utils/constants/cloudinaryConstants.js";
 import { numberOfEmployeesRanges } from "../../utils/constants/appConstants.js";
+import JobOpportunity from "./JobOpportunity.model.js";
 
 const companySchema = new Schema(
   {
@@ -69,16 +70,12 @@ companySchema.virtual("jobs", {
   foreignField: "companyId",
 });
 
-
-companySchema.post(
-  "",
-  { query: false, document: true },
-  async function (doc, next) {
-    
-
-    return next();
+companySchema.post("save", async function (doc, next) {
+  if (doc.deletedAt) {
+    await JobOpportunity.updateMany({ companyId: doc._id }, { closed: true });
   }
-);
+  return next();
+});
 
 const Company = model("Company", companySchema);
 export default Company;
