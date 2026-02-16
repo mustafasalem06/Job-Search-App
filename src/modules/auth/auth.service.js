@@ -14,8 +14,7 @@ export const signup = async (req, res, next) => {
     return next(new Error("User already exists!"), { cause: 409 });
 
   const OTP = randomstring.generate({ length: 6, charset: "alphanumeric" });
-  eventEmitter.emit("SIGNUP", email, OTP, subjects.signUp);
-
+ 
   const hashedOTP = hash({ plainText: OTP });
 
   const user = await User.create({

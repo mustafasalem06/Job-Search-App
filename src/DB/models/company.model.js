@@ -4,7 +4,7 @@ import {
   defaultSecureURL_logoCompany,
 } from "../../utils/constants/cloudinaryConstants.js";
 import { numberOfEmployeesRanges } from "../../utils/constants/appConstants.js";
-import JobOpportunity from "./JobOpportunity.model.js";
+
 
 const companySchema = new Schema(
   {
